@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -7,7 +6,11 @@ import {
   Plus, 
   FileText,
   Search,
-  LogOut 
+  LogOut,
+  Eye,
+  Edit,
+  Trash,
+  Calendar
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,11 +34,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from '@/components/ui/use-toast';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [workouts, setWorkouts] = useState([
+    {
+      id: 1,
+      title: "Treino A - Peitoral e Tríceps",
+      exercises: [
+        { name: "Supino reto", sets: "4", reps: "12" },
+        { name: "Supino inclinado", sets: "3", reps: "12" },
+        { name: "Crucifixo", sets: "3", reps: "15" }
+      ]
+    }
+  ]);
   
   // Mock data for demonstration
   const clients = [
@@ -45,6 +62,91 @@ const AdminDashboard = () => {
     { id: "GYM12348", name: "Ana Oliveira", plan: "1 mês", startDate: "2023-09-01", endDate: "2023-10-01" },
     { id: "GYM12349", name: "Carlos Souza", plan: "1 ano", startDate: "2023-05-15", endDate: "2024-05-15" },
   ];
+  
+  const clientWorkouts = {
+    "GYM12345": [
+      {
+        id: 1,
+        title: "Treino A - Peito e Tríceps",
+        exercises: [
+          { name: "Supino reto", sets: "4", reps: "12" },
+          { name: "Supino inclinado", sets: "3", reps: "12" },
+          { name: "Crucifixo", sets: "3", reps: "15" },
+        ]
+      },
+      {
+        id: 2,
+        title: "Treino B - Costas e Bíceps",
+        exercises: [
+          { name: "Puxada frontal", sets: "4", reps: "12" },
+          { name: "Remada curvada", sets: "3", reps: "12" },
+          { name: "Rosca direta", sets: "3", reps: "15" },
+        ]
+      }
+    ]
+  };
+  
+  const handleAddWorkout = () => {
+    setWorkouts([
+      ...workouts,
+      {
+        id: workouts.length + 1,
+        title: `Novo Treino ${workouts.length + 1}`,
+        exercises: []
+      }
+    ]);
+    
+    toast({
+      title: "Treino adicionado",
+      description: "Um novo treino foi adicionado. Adicione exercícios a ele.",
+      duration: 3000
+    });
+  };
+  
+  const handleAddExercise = (workoutIndex) => {
+    const updatedWorkouts = [...workouts];
+    updatedWorkouts[workoutIndex].exercises.push({
+      name: "",
+      sets: "",
+      reps: ""
+    });
+    setWorkouts(updatedWorkouts);
+  };
+  
+  const handleRemoveExercise = (workoutIndex, exerciseIndex) => {
+    const updatedWorkouts = [...workouts];
+    updatedWorkouts[workoutIndex].exercises.splice(exerciseIndex, 1);
+    setWorkouts(updatedWorkouts);
+  };
+  
+  const handleRemoveWorkout = (workoutIndex) => {
+    const updatedWorkouts = [...workouts];
+    updatedWorkouts.splice(workoutIndex, 1);
+    setWorkouts(updatedWorkouts);
+    
+    toast({
+      title: "Treino removido",
+      description: "O treino foi removido com sucesso.",
+      duration: 3000
+    });
+  };
+  
+  const handleExerciseChange = (workoutIndex, exerciseIndex, field, value) => {
+    const updatedWorkouts = [...workouts];
+    updatedWorkouts[workoutIndex].exercises[exerciseIndex][field] = value;
+    setWorkouts(updatedWorkouts);
+  };
+  
+  const handleWorkoutTitleChange = (workoutIndex, value) => {
+    const updatedWorkouts = [...workouts];
+    updatedWorkouts[workoutIndex].title = value;
+    setWorkouts(updatedWorkouts);
+  };
+  
+  const handleViewWorkout = (clientId) => {
+    setSelectedClient(clientId);
+    setActiveTab('view-workouts');
+  };
   
   const handleLogout = () => {
     navigate('/admin/login');
@@ -56,7 +158,7 @@ const AdminDashboard = () => {
       <aside className="bg-gray-900 text-white w-64 flex-shrink-0 hidden md:block">
         <div className="p-6">
           <img 
-            src="/lovable-uploads/3b284ef0-e51c-458d-b266-e14fb052e77b.png" 
+            src="/lovable-uploads/1fcacf9f-c4be-4140-85d0-11491333b26d.png" 
             alt="Groovy Academia Logo" 
             className="h-10 w-auto mx-auto mb-6"
           />
@@ -87,6 +189,16 @@ const AdminDashboard = () => {
             <FileText size={20} className="mr-3" />
             <span>Cadastrar Treino</span>
           </div>
+          
+          {selectedClient && (
+            <div 
+              className={`flex items-center px-6 py-4 cursor-pointer transition-colors ${activeTab === 'view-workouts' ? 'bg-groovy text-white' : 'hover:bg-gray-800'}`}
+              onClick={() => setActiveTab('view-workouts')}
+            >
+              <Calendar size={20} className="mr-3" />
+              <span>Ver Treinos</span>
+            </div>
+          )}
         </nav>
         
         <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -188,8 +300,17 @@ const AdminDashboard = () => {
                           <TableCell>{client.endDate}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm">Editar</Button>
-                              <Button size="sm">Ver Treino</Button>
+                              <Button variant="outline" size="sm">
+                                <Edit size={16} className="mr-1" />
+                                Editar
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleViewWorkout(client.id)}
+                              >
+                                <Eye size={16} className="mr-1" />
+                                Ver Treinos
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -327,53 +448,110 @@ const AdminDashboard = () => {
                     <Input id="client-id" placeholder="Digite o número de cadastro do cliente" />
                   </div>
                   
-                  <div className="grid gap-2">
-                    <Label htmlFor="workout-name">Título do treino</Label>
-                    <Input id="workout-name" placeholder="Ex: Treino A - Peitoral e Tríceps" />
+                  <div className="flex justify-between items-center mb-4">
+                    <Label className="text-lg font-medium">Treinos</Label>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleAddWorkout}
+                    >
+                      <Plus size={16} className="mr-1" /> 
+                      Adicionar treino
+                    </Button>
                   </div>
                   
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <Label>Exercícios</Label>
-                      <Button type="button" variant="outline" size="sm">+ Adicionar exercício</Button>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="bg-gray-50 p-4 rounded-md">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="col-span-2">
-                            <Label htmlFor="exercise-1" className="text-sm">Nome do exercício</Label>
-                            <Input id="exercise-1" placeholder="Ex: Supino reto" className="mt-1" />
+                  {workouts.map((workout, workoutIndex) => (
+                    <Card key={workout.id} className="mb-8 border-2 border-gray-200">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <Input 
+                              value={workout.title} 
+                              onChange={(e) => handleWorkoutTitleChange(workoutIndex, e.target.value)}
+                              className="font-bold text-lg" 
+                              placeholder="Nome do treino"
+                            />
                           </div>
-                          <div>
-                            <Label htmlFor="sets-1" className="text-sm">Séries</Label>
-                            <Input id="sets-1" placeholder="Ex: 4" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="reps-1" className="text-sm">Repetições</Label>
-                            <Input id="reps-1" placeholder="Ex: 12" className="mt-1" />
-                          </div>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleRemoveWorkout(workoutIndex)}
+                            className="ml-2"
+                          >
+                            <Trash size={16} />
+                          </Button>
                         </div>
-                      </div>
+                      </CardHeader>
                       
-                      <div className="bg-gray-50 p-4 rounded-md">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="col-span-2">
-                            <Label htmlFor="exercise-2" className="text-sm">Nome do exercício</Label>
-                            <Input id="exercise-2" placeholder="Ex: Supino inclinado" className="mt-1" />
+                      <CardContent>
+                        <div>
+                          <div className="flex justify-between items-center mb-4">
+                            <Label>Exercícios</Label>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleAddExercise(workoutIndex)}
+                            >
+                              <Plus size={16} className="mr-1" /> 
+                              Adicionar exercício
+                            </Button>
                           </div>
-                          <div>
-                            <Label htmlFor="sets-2" className="text-sm">Séries</Label>
-                            <Input id="sets-2" placeholder="Ex: 3" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="reps-2" className="text-sm">Repetições</Label>
-                            <Input id="reps-2" placeholder="Ex: 12" className="mt-1" />
+                          
+                          <div className="space-y-4">
+                            {workout.exercises.map((exercise, exerciseIndex) => (
+                              <div className="bg-gray-50 p-4 rounded-md" key={exerciseIndex}>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                  <div className="col-span-2">
+                                    <Label htmlFor={`exercise-${workoutIndex}-${exerciseIndex}`} className="text-sm">Nome do exercício</Label>
+                                    <Input 
+                                      id={`exercise-${workoutIndex}-${exerciseIndex}`} 
+                                      placeholder="Ex: Supino reto" 
+                                      className="mt-1"
+                                      value={exercise.name}
+                                      onChange={(e) => handleExerciseChange(workoutIndex, exerciseIndex, 'name', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor={`sets-${workoutIndex}-${exerciseIndex}`} className="text-sm">Séries</Label>
+                                    <Input 
+                                      id={`sets-${workoutIndex}-${exerciseIndex}`} 
+                                      placeholder="Ex: 4" 
+                                      className="mt-1"
+                                      value={exercise.sets}
+                                      onChange={(e) => handleExerciseChange(workoutIndex, exerciseIndex, 'sets', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="relative">
+                                    <Label htmlFor={`reps-${workoutIndex}-${exerciseIndex}`} className="text-sm">Repetições</Label>
+                                    <div className="flex items-center">
+                                      <Input 
+                                        id={`reps-${workoutIndex}-${exerciseIndex}`} 
+                                        placeholder="Ex: 12" 
+                                        className="mt-1"
+                                        value={exercise.reps}
+                                        onChange={(e) => handleExerciseChange(workoutIndex, exerciseIndex, 'reps', e.target.value)}
+                                      />
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRemoveExercise(workoutIndex, exerciseIndex)}
+                                        className="ml-2 mt-1 h-10 text-destructive hover:text-destructive/90"
+                                      >
+                                        <Trash size={16} />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                   
                   <div className="grid gap-2">
                     <Label htmlFor="notes">Observações</Label>
@@ -400,6 +578,91 @@ const AdminDashboard = () => {
                 </form>
               </CardContent>
             </Card>
+          </div>
+        )}
+        
+        {activeTab === 'view-workouts' && selectedClient && (
+          <div>
+            <div className="mb-6">
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setActiveTab('clients')}
+                  className="mb-2"
+                >
+                  <span className="mr-1">←</span> Voltar
+                </Button>
+              </div>
+              <h1 className="text-2xl font-bold">Treinos do Cliente</h1>
+              <p className="text-gray-600">
+                Cliente: {clients.find(c => c.id === selectedClient)?.name} ({selectedClient})
+              </p>
+            </div>
+            
+            {clientWorkouts[selectedClient] ? (
+              <div className="space-y-6">
+                {clientWorkouts[selectedClient].map((workout, index) => (
+                  <Card key={index} className="mb-6">
+                    <CardHeader>
+                      <CardTitle>{workout.title}</CardTitle>
+                      <CardDescription>
+                        {workout.exercises.length} exercícios
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Exercício</TableHead>
+                            <TableHead>Séries</TableHead>
+                            <TableHead>Repetições</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {workout.exercises.map((exercise, i) => (
+                            <TableRow key={i}>
+                              <TableCell>{exercise.name}</TableCell>
+                              <TableCell>{exercise.sets}</TableCell>
+                              <TableCell>{exercise.reps}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm">
+                        <Edit size={16} className="mr-2" />
+                        Editar
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Exportar (PDF)
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+                
+                <div className="flex justify-end">
+                  <Button>
+                    <Plus size={16} className="mr-2" />
+                    Adicionar Novo Treino
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center">
+                    <FileText size={48} className="mx-auto text-gray-400 mb-2" />
+                    <p className="text-gray-500">Este cliente ainda não possui treinos cadastrados.</p>
+                    <Button className="mt-4">
+                      <Plus size={16} className="mr-2" />
+                      Cadastrar Novo Treino
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </main>

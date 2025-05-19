@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import Footer from '@/components/Footer';
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
+  const [activeWorkout, setActiveWorkout] = useState(0);
   
   // Mock data for demonstration
   const clientData = {
@@ -23,17 +24,41 @@ const ClientDashboard = () => {
     frequencyGoal: "4 vezes por semana"
   };
 
-  const workoutData = {
-    name: "Treino A - Peitoral e Tríceps",
-    exercises: [
-      { name: "Supino reto", sets: "4", reps: "12" },
-      { name: "Supino inclinado", sets: "3", reps: "12" },
-      { name: "Crucifixo", sets: "3", reps: "15" },
-      { name: "Tríceps corda", sets: "4", reps: "15" },
-      { name: "Tríceps francês", sets: "3", reps: "12" },
-      { name: "Mergulho no banco", sets: "3", reps: "Falha" },
-    ]
-  };
+  const workoutData = [
+    {
+      name: "Treino A - Peitoral e Tríceps",
+      exercises: [
+        { name: "Supino reto", sets: "4", reps: "12" },
+        { name: "Supino inclinado", sets: "3", reps: "12" },
+        { name: "Crucifixo", sets: "3", reps: "15" },
+        { name: "Tríceps corda", sets: "4", reps: "15" },
+        { name: "Tríceps francês", sets: "3", reps: "12" },
+        { name: "Mergulho no banco", sets: "3", reps: "Falha" },
+      ]
+    },
+    {
+      name: "Treino B - Costas e Bíceps",
+      exercises: [
+        { name: "Puxada frontal", sets: "4", reps: "12" },
+        { name: "Remada curvada", sets: "3", reps: "12" },
+        { name: "Puxada alta", sets: "3", reps: "10" },
+        { name: "Rosca direta", sets: "3", reps: "12" },
+        { name: "Rosca martelo", sets: "3", reps: "12" },
+        { name: "Rosca concentrada", sets: "3", reps: "10" },
+      ]
+    },
+    {
+      name: "Treino C - Pernas e Ombros",
+      exercises: [
+        { name: "Agachamento", sets: "4", reps: "12" },
+        { name: "Leg press", sets: "4", reps: "12" },
+        { name: "Cadeira extensora", sets: "3", reps: "15" },
+        { name: "Desenvolvimento", sets: "4", reps: "12" },
+        { name: "Elevação lateral", sets: "3", reps: "12" },
+        { name: "Panturrilha em pé", sets: "4", reps: "20" },
+      ]
+    }
+  ];
 
   const handleExport = () => {
     alert("Função de exportação seria implementada aqui.");
@@ -65,7 +90,7 @@ const ClientDashboard = () => {
           <Tabs defaultValue="info" className="w-full">
             <TabsList className="grid w-full max-w-md mx-auto md:grid-cols-2">
               <TabsTrigger value="info">Meus Dados</TabsTrigger>
-              <TabsTrigger value="workout">Meu Treino</TabsTrigger>
+              <TabsTrigger value="workout">Meus Treinos</TabsTrigger>
             </TabsList>
             
             <TabsContent value="info" className="mt-6">
@@ -146,9 +171,24 @@ const ClientDashboard = () => {
             </TabsContent>
             
             <TabsContent value="workout" className="mt-6">
+              <div className="mb-6">
+                <div className="flex flex-wrap gap-2">
+                  {workoutData.map((workout, index) => (
+                    <Button
+                      key={index}
+                      variant={activeWorkout === index ? "default" : "outline"}
+                      onClick={() => setActiveWorkout(index)}
+                      className={activeWorkout === index ? "bg-groovy hover:bg-groovy-dark" : ""}
+                    >
+                      {workout.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
               <Card>
                 <CardHeader>
-                  <CardTitle>{workoutData.name}</CardTitle>
+                  <CardTitle>{workoutData[activeWorkout].name}</CardTitle>
                   <CardDescription>
                     Seu treino personalizado
                   </CardDescription>
@@ -165,7 +205,7 @@ const ClientDashboard = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {workoutData.exercises.map((exercise, index) => (
+                          {workoutData[activeWorkout].exercises.map((exercise, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                               <td className="py-3 px-4 border-b">{exercise.name}</td>
                               <td className="py-3 px-4 border-b text-center">{exercise.sets}</td>
