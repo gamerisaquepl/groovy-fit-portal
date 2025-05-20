@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -56,24 +57,64 @@ import { Badge } from "@/components/ui/badge";
 import EditClientDialog from '@/components/EditClientDialog';
 import EditWorkoutDialog from '@/components/EditWorkoutDialog';
 import AddWorkoutDialog from '@/components/AddWorkoutDialog';
+import WorkoutChangeDialog from '@/components/WorkoutChangeDialog';
+
+// Define interfaces for our data structures
+interface Exercise {
+  name: string;
+  sets: string;
+  reps: string;
+}
+
+interface Workout {
+  id: number;
+  title: string;
+  exercises: Exercise[];
+}
+
+interface Client {
+  id: string;
+  name: string;
+  plan: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface Notification {
+  id: number;
+  type: 'workout_change' | 'data_change';
+  clientId: string;
+  clientName: string;
+  message: string;
+  reason: string;
+  date: string;
+  read: boolean;
+  field?: string;
+  currentValue?: string;
+  newValue?: string;
+}
+
+interface ClientWorkouts {
+  [clientId: string]: Workout[];
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [sortByDaysLeft, setSortByDaysLeft] = useState(false);
   
   // Dialog states
   const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [isAddWorkoutDialogOpen, setIsAddWorkoutDialogOpen] = useState(false);
-  const [currentEditingClient, setCurrentEditingClient] = useState(null);
-  const [currentEditingWorkout, setCurrentEditingWorkout] = useState(null);
+  const [currentEditingClient, setCurrentEditingClient] = useState<Client | null>(null);
+  const [currentEditingWorkout, setCurrentEditingWorkout] = useState<Workout | null>(null);
   
   // Notifications state
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState<Notification[]>([
     { 
       id: 1, 
       type: 'workout_change', 
@@ -99,7 +140,7 @@ const AdminDashboard = () => {
     }
   ]);
   
-  const [workouts, setWorkouts] = useState([
+  const [workouts, setWorkouts] = useState<Workout[]>([
     {
       id: 1,
       title: "Treino A - Peitoral e Tríceps",
@@ -112,7 +153,7 @@ const AdminDashboard = () => {
   ]);
   
   // Mock data for demonstration
-  const [clients, setClients] = useState([
+  const [clients, setClients] = useState<Client[]>([
     { id: "GYM12345", name: "João Silva", plan: "6 meses", startDate: "2023-07-01", endDate: "2023-12-31" },
     { id: "GYM12346", name: "Maria Santos", plan: "1 ano", startDate: "2023-06-15", endDate: "2024-06-15" },
     { id: "GYM12347", name: "Pedro Lima", plan: "3 meses", startDate: "2023-08-01", endDate: "2023-11-01" },
@@ -120,7 +161,7 @@ const AdminDashboard = () => {
     { id: "GYM12349", name: "Carlos Souza", plan: "1 ano", startDate: "2023-05-15", endDate: "2024-05-15" },
   ]);
   
-  const [clientWorkouts, setClientWorkouts] = useState({
+  const [clientWorkouts, setClientWorkouts] = useState<ClientWorkouts>({
     "GYM12345": [
       {
         id: 1,
@@ -144,7 +185,7 @@ const AdminDashboard = () => {
   });
   
   // Calculate days left for each client's plan
-  const calculateDaysLeft = (endDate) => {
+  const calculateDaysLeft = (endDate: string) => {
     const end = new Date(endDate);
     const today = new Date();
     const diffTime = end.getTime() - today.getTime();
@@ -162,7 +203,7 @@ const AdminDashboard = () => {
   };
   
   // Handle notification click
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = (notification: Notification) => {
     // Mark notification as read
     const updatedNotifications = notifications.map(n => 
       n.id === notification.id ? {...n, read: true} : n
@@ -195,13 +236,16 @@ const AdminDashboard = () => {
   };
   
   // Handle delete client
-  const handleDeleteClient = (clientId) => {
+  const handleDeleteClient = (clientId: string) => {
     const updatedClients = clients.filter(client => client.id !== clientId);
     setClients(updatedClients);
     
     // Also remove client workouts
-    const { [clientId]: _, ...remainingWorkouts } = clientWorkouts;
-    setClientWorkouts(remainingWorkouts);
+    const updatedClientWorkouts = { ...clientWorkouts };
+    if (clientId in updatedClientWorkouts) {
+      delete updatedClientWorkouts[clientId];
+      setClientWorkouts(updatedClientWorkouts);
+    }
     
     toast({
       title: "Cliente removido",
@@ -227,7 +271,7 @@ const AdminDashboard = () => {
     });
   };
   
-  const handleAddExercise = (workoutIndex) => {
+  const handleAddExercise = (workoutIndex: number) => {
     const updatedWorkouts = [...workouts];
     updatedWorkouts[workoutIndex].exercises.push({
       name: "",
@@ -237,13 +281,13 @@ const AdminDashboard = () => {
     setWorkouts(updatedWorkouts);
   };
   
-  const handleRemoveExercise = (workoutIndex, exerciseIndex) => {
+  const handleRemoveExercise = (workoutIndex: number, exerciseIndex: number) => {
     const updatedWorkouts = [...workouts];
     updatedWorkouts[workoutIndex].exercises.splice(exerciseIndex, 1);
     setWorkouts(updatedWorkouts);
   };
   
-  const handleRemoveWorkout = (workoutIndex) => {
+  const handleRemoveWorkout = (workoutIndex: number) => {
     const updatedWorkouts = [...workouts];
     updatedWorkouts.splice(workoutIndex, 1);
     setWorkouts(updatedWorkouts);
@@ -255,19 +299,19 @@ const AdminDashboard = () => {
     });
   };
   
-  const handleExerciseChange = (workoutIndex, exerciseIndex, field, value) => {
+  const handleExerciseChange = (workoutIndex: number, exerciseIndex: number, field: keyof Exercise, value: string) => {
     const updatedWorkouts = [...workouts];
     updatedWorkouts[workoutIndex].exercises[exerciseIndex][field] = value;
     setWorkouts(updatedWorkouts);
   };
   
-  const handleWorkoutTitleChange = (workoutIndex, value) => {
+  const handleWorkoutTitleChange = (workoutIndex: number, value: string) => {
     const updatedWorkouts = [...workouts];
     updatedWorkouts[workoutIndex].title = value;
     setWorkouts(updatedWorkouts);
   };
   
-  const handleViewWorkout = (clientId) => {
+  const handleViewWorkout = (clientId: string) => {
     setSelectedClient(clientId);
     setActiveTab('view-workouts');
   };
@@ -276,12 +320,12 @@ const AdminDashboard = () => {
     navigate('/admin/login');
   };
   
-  const handleEditClient = (client) => {
+  const handleEditClient = (client: Client) => {
     setCurrentEditingClient(client);
     setIsEditClientDialogOpen(true);
   };
   
-  const handleSaveClientEdit = (updatedClient) => {
+  const handleSaveClientEdit = (updatedClient: Client) => {
     // Update the client in the clients array
     const updatedClients = clients.map(client => 
       client.id === updatedClient.id ? updatedClient : client
@@ -289,7 +333,7 @@ const AdminDashboard = () => {
     setClients(updatedClients);
   };
   
-  const handleAddNewClient = (e) => {
+  const handleAddNewClient = (e: React.FormEvent) => {
     e.preventDefault();
     
     // In a real app, we would save the client data to a database
@@ -307,12 +351,12 @@ const AdminDashboard = () => {
     setActiveTab('clients');
   };
   
-  const handleEditWorkout = (workout) => {
+  const handleEditWorkout = (workout: Workout) => {
     setCurrentEditingWorkout(workout);
     setIsEditWorkoutDialogOpen(true);
   };
   
-  const handleSaveWorkoutEdit = (updatedWorkout) => {
+  const handleSaveWorkoutEdit = (updatedWorkout: Workout) => {
     // Update the workout in the clientWorkouts
     if (selectedClient && clientWorkouts[selectedClient]) {
       const updatedWorkouts = clientWorkouts[selectedClient].map(workout => 
@@ -330,7 +374,7 @@ const AdminDashboard = () => {
     setIsAddWorkoutDialogOpen(true);
   };
   
-  const handleSaveNewWorkout = (newWorkout) => {
+  const handleSaveNewWorkout = (newWorkout: Workout) => {
     if (selectedClient) {
       const clientCurrentWorkouts = clientWorkouts[selectedClient] || [];
       
@@ -344,7 +388,7 @@ const AdminDashboard = () => {
     }
   };
   
-  const handleSaveWorkoutTemplate = (e) => {
+  const handleSaveWorkoutTemplate = (e: React.FormEvent) => {
     e.preventDefault();
     
     // In a real app, we would save the workout template
@@ -356,7 +400,7 @@ const AdminDashboard = () => {
     });
   };
   
-  const handleDeleteClientWorkout = (workoutId) => {
+  const handleDeleteClientWorkout = (workoutId: number) => {
     if (selectedClient && clientWorkouts[selectedClient]) {
       const updatedWorkouts = clientWorkouts[selectedClient].filter(
         workout => workout.id !== workoutId
