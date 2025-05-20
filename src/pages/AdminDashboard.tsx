@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Home, 
@@ -11,7 +10,8 @@ import {
   Eye,
   Edit,
   Trash,
-  Calendar
+  Calendar,
+  BellRing
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/components/ui/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import EditClientDialog from '@/components/EditClientDialog';
 import EditWorkoutDialog from '@/components/EditWorkoutDialog';
 import AddWorkoutDialog from '@/components/AddWorkoutDialog';
@@ -46,6 +63,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState(null);
+  const [sortByDaysLeft, setSortByDaysLeft] = useState(false);
   
   // Dialog states
   const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
@@ -53,6 +71,33 @@ const AdminDashboard = () => {
   const [isAddWorkoutDialogOpen, setIsAddWorkoutDialogOpen] = useState(false);
   const [currentEditingClient, setCurrentEditingClient] = useState(null);
   const [currentEditingWorkout, setCurrentEditingWorkout] = useState(null);
+  
+  // Notifications state
+  const [notifications, setNotifications] = useState([
+    { 
+      id: 1, 
+      type: 'workout_change', 
+      clientId: 'GYM12345', 
+      clientName: 'João Silva',
+      message: 'João Silva solicitou alteração de treino', 
+      reason: 'Dor no ombro direito', 
+      date: '2023-10-01',
+      read: false
+    },
+    { 
+      id: 2, 
+      type: 'data_change', 
+      clientId: 'GYM12346', 
+      clientName: 'Maria Santos',
+      message: 'Maria Santos solicitou alteração de dados pessoais', 
+      field: 'objective',
+      currentValue: 'Perda de peso',
+      newValue: 'Ganho de massa muscular',
+      reason: 'Mudança de objetivos',
+      date: '2023-10-02',
+      read: false
+    }
+  ]);
   
   const [workouts, setWorkouts] = useState([
     {
@@ -97,6 +142,73 @@ const AdminDashboard = () => {
       }
     ]
   });
+  
+  // Calculate days left for each client's plan
+  const calculateDaysLeft = (endDate) => {
+    const end = new Date(endDate);
+    const today = new Date();
+    const diffTime = end.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+  
+  // Sort clients by days left
+  const getSortedClients = () => {
+    if (!sortByDaysLeft) return clients;
+    
+    return [...clients].sort((a, b) => 
+      calculateDaysLeft(a.endDate) - calculateDaysLeft(b.endDate)
+    );
+  };
+  
+  // Handle notification click
+  const handleNotificationClick = (notification) => {
+    // Mark notification as read
+    const updatedNotifications = notifications.map(n => 
+      n.id === notification.id ? {...n, read: true} : n
+    );
+    setNotifications(updatedNotifications);
+    
+    // Navigate to appropriate screen based on notification type
+    if (notification.type === 'workout_change') {
+      setSelectedClient(notification.clientId);
+      setActiveTab('view-workouts');
+      
+      toast({
+        title: "Alteração de treino solicitada",
+        description: `${notification.clientName} solicitou alteração de treino devido a: ${notification.reason}`,
+        duration: 5000
+      });
+    } else if (notification.type === 'data_change') {
+      const client = clients.find(c => c.id === notification.clientId);
+      if (client) {
+        setCurrentEditingClient(client);
+        setIsEditClientDialogOpen(true);
+        
+        toast({
+          title: "Alteração de dados solicitada",
+          description: `${notification.clientName} solicitou alteração do campo "${notification.field}" de "${notification.currentValue}" para "${notification.newValue}"`,
+          duration: 5000
+        });
+      }
+    }
+  };
+  
+  // Handle delete client
+  const handleDeleteClient = (clientId) => {
+    const updatedClients = clients.filter(client => client.id !== clientId);
+    setClients(updatedClients);
+    
+    // Also remove client workouts
+    const { [clientId]: _, ...remainingWorkouts } = clientWorkouts;
+    setClientWorkouts(remainingWorkouts);
+    
+    toast({
+      title: "Cliente removido",
+      description: "O cliente foi removido com sucesso.",
+      duration: 3000
+    });
+  };
   
   const handleAddWorkout = () => {
     setWorkouts([
@@ -263,13 +375,16 @@ const AdminDashboard = () => {
     }
   };
   
+  // Get unread notification count
+  const unreadNotificationCount = notifications.filter(n => !n.read).length;
+  
   return (
     <div className="min-h-screen flex bg-gray-100">
       {/* Sidebar */}
       <aside className="bg-gray-900 text-white w-64 flex-shrink-0 hidden md:block">
         <div className="p-6">
           <img 
-            src="/lovable-uploads/1fcacf9f-c4be-4140-85d0-11491333b26d.png" 
+            src="/lovable-uploads/3b284ef0-e51c-458d-b266-e14fb052e77b.png" 
             alt="Groovy Academia Logo" 
             className="h-10 w-auto mx-auto mb-6"
           />
@@ -299,6 +414,17 @@ const AdminDashboard = () => {
           >
             <FileText size={20} className="mr-3" />
             <span>Cadastrar Treino</span>
+          </div>
+          
+          <div 
+            className={`flex items-center px-6 py-4 cursor-pointer transition-colors ${activeTab === 'notifications' ? 'bg-groovy text-white' : 'hover:bg-gray-800'}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            <BellRing size={20} className="mr-3" />
+            <span>Notificações</span>
+            {unreadNotificationCount > 0 && (
+              <Badge className="ml-auto bg-red-500">{unreadNotificationCount}</Badge>
+            )}
           </div>
           
           {selectedClient && (
@@ -352,6 +478,19 @@ const AdminDashboard = () => {
           </button>
           
           <button 
+            className={`flex flex-col items-center py-3 px-5 ${activeTab === 'notifications' ? 'text-groovy' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            <BellRing size={20} />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {unreadNotificationCount}
+              </span>
+            )}
+            <span className="text-xs mt-1">Notificações</span>
+          </button>
+          
+          <button 
             className="flex flex-col items-center py-3 px-5 text-gray-500"
             onClick={handleLogout}
           >
@@ -371,14 +510,24 @@ const AdminDashboard = () => {
                 <p className="text-gray-600">Visualize e gerencie todos os clientes da Groovy Academia.</p>
               </div>
               
-              <div className="w-full md:w-auto relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <Input 
-                  placeholder="Buscar cliente..." 
-                  className="pl-10 w-full md:w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              <div className="w-full md:w-auto flex flex-col md:flex-row gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Input 
+                    placeholder="Buscar cliente..." 
+                    className="pl-10 w-full md:w-64"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={() => setSortByDaysLeft(!sortByDaysLeft)}
+                >
+                  <Calendar size={16} />
+                  {sortByDaysLeft ? "Ordem padrão" : "Ordenar por dias restantes"}
+                </Button>
               </div>
             </div>
             
@@ -393,11 +542,12 @@ const AdminDashboard = () => {
                         <TableHead>Plano</TableHead>
                         <TableHead>Data Início</TableHead>
                         <TableHead>Data Fim</TableHead>
+                        <TableHead>Dias Restantes</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {clients
+                      {getSortedClients()
                         .filter(client => 
                           client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           client.id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -409,6 +559,11 @@ const AdminDashboard = () => {
                           <TableCell>{client.plan}</TableCell>
                           <TableCell>{client.startDate}</TableCell>
                           <TableCell>{client.endDate}</TableCell>
+                          <TableCell>
+                            <Badge className={`${calculateDaysLeft(client.endDate) < 10 ? 'bg-red-500' : calculateDaysLeft(client.endDate) < 30 ? 'bg-yellow-500' : 'bg-green-500'}`}>
+                              {calculateDaysLeft(client.endDate)} dias
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button 
@@ -426,6 +581,34 @@ const AdminDashboard = () => {
                                 <Eye size={16} className="mr-1" />
                                 Ver Treinos
                               </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm"
+                                  >
+                                    <Trash size={16} className="mr-1" />
+                                    Excluir
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir o cliente {client.name}? Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => handleDeleteClient(client.id)}
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -435,6 +618,62 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+        
+        {activeTab === 'notifications' && (
+          <div>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold">Notificações</h1>
+              <p className="text-gray-600">Gerencie as solicitações dos clientes.</p>
+            </div>
+            
+            {notifications.length > 0 ? (
+              <div className="space-y-4">
+                {notifications.map((notification) => (
+                  <Card 
+                    key={notification.id} 
+                    className={`cursor-pointer transition-colors hover:bg-gray-50 ${notification.read ? 'opacity-70' : 'border-l-4 border-groovy'}`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <CardContent className="p-4 flex items-center">
+                      {!notification.read && (
+                        <div className="w-2 h-2 rounded-full bg-groovy mr-3"></div>
+                      )}
+                      <div className="flex-grow">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-medium text-gray-900">
+                            {notification.type === 'workout_change' ? 'Alteração de Treino' : 'Alteração de Dados'}
+                          </h3>
+                          <span className="text-xs text-gray-500">{notification.date}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{notification.message}</p>
+                        <div className="mt-2 text-xs text-gray-500">
+                          <p><span className="font-medium">Motivo:</span> {notification.reason}</p>
+                          {notification.type === 'data_change' && (
+                            <p className="mt-1"><span className="font-medium">Campo:</span> {notification.field} ({notification.currentValue} → {notification.newValue})</p>
+                          )}
+                        </div>
+                      </div>
+                      {notification.type === 'workout_change' ? (
+                        <FileText size={18} className="text-groovy ml-2" />
+                      ) : (
+                        <Users size={18} className="text-groovy ml-2" />
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center">
+                    <BellRing size={48} className="mx-auto text-gray-400 mb-2" />
+                    <p className="text-gray-500">Não há notificações no momento.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
         
