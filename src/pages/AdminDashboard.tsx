@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -35,6 +36,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/components/ui/use-toast';
+import EditClientDialog from '@/components/EditClientDialog';
+import EditWorkoutDialog from '@/components/EditWorkoutDialog';
+import AddWorkoutDialog from '@/components/AddWorkoutDialog';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -42,6 +46,14 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState(null);
+  
+  // Dialog states
+  const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
+  const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
+  const [isAddWorkoutDialogOpen, setIsAddWorkoutDialogOpen] = useState(false);
+  const [currentEditingClient, setCurrentEditingClient] = useState(null);
+  const [currentEditingWorkout, setCurrentEditingWorkout] = useState(null);
+  
   const [workouts, setWorkouts] = useState([
     {
       id: 1,
@@ -55,15 +67,15 @@ const AdminDashboard = () => {
   ]);
   
   // Mock data for demonstration
-  const clients = [
+  const [clients, setClients] = useState([
     { id: "GYM12345", name: "João Silva", plan: "6 meses", startDate: "2023-07-01", endDate: "2023-12-31" },
     { id: "GYM12346", name: "Maria Santos", plan: "1 ano", startDate: "2023-06-15", endDate: "2024-06-15" },
     { id: "GYM12347", name: "Pedro Lima", plan: "3 meses", startDate: "2023-08-01", endDate: "2023-11-01" },
     { id: "GYM12348", name: "Ana Oliveira", plan: "1 mês", startDate: "2023-09-01", endDate: "2023-10-01" },
     { id: "GYM12349", name: "Carlos Souza", plan: "1 ano", startDate: "2023-05-15", endDate: "2024-05-15" },
-  ];
+  ]);
   
-  const clientWorkouts = {
+  const [clientWorkouts, setClientWorkouts] = useState({
     "GYM12345": [
       {
         id: 1,
@@ -84,7 +96,7 @@ const AdminDashboard = () => {
         ]
       }
     ]
-  };
+  });
   
   const handleAddWorkout = () => {
     setWorkouts([
@@ -150,6 +162,105 @@ const AdminDashboard = () => {
   
   const handleLogout = () => {
     navigate('/admin/login');
+  };
+  
+  const handleEditClient = (client) => {
+    setCurrentEditingClient(client);
+    setIsEditClientDialogOpen(true);
+  };
+  
+  const handleSaveClientEdit = (updatedClient) => {
+    // Update the client in the clients array
+    const updatedClients = clients.map(client => 
+      client.id === updatedClient.id ? updatedClient : client
+    );
+    setClients(updatedClients);
+  };
+  
+  const handleAddNewClient = (e) => {
+    e.preventDefault();
+    
+    // In a real app, we would save the client data to a database
+    // For demo, we'll just show a toast
+    toast({
+      title: "Cliente cadastrado",
+      description: "O cliente foi cadastrado com sucesso.",
+      duration: 3000
+    });
+    
+    // Reset the form (in a real app)
+    // Reset form fields would go here
+    
+    // Navigate to clients tab
+    setActiveTab('clients');
+  };
+  
+  const handleEditWorkout = (workout) => {
+    setCurrentEditingWorkout(workout);
+    setIsEditWorkoutDialogOpen(true);
+  };
+  
+  const handleSaveWorkoutEdit = (updatedWorkout) => {
+    // Update the workout in the clientWorkouts
+    if (selectedClient && clientWorkouts[selectedClient]) {
+      const updatedWorkouts = clientWorkouts[selectedClient].map(workout => 
+        workout.id === updatedWorkout.id ? updatedWorkout : workout
+      );
+      
+      setClientWorkouts({
+        ...clientWorkouts,
+        [selectedClient]: updatedWorkouts
+      });
+    }
+  };
+  
+  const handleAddNewWorkoutToClient = () => {
+    setIsAddWorkoutDialogOpen(true);
+  };
+  
+  const handleSaveNewWorkout = (newWorkout) => {
+    if (selectedClient) {
+      const clientCurrentWorkouts = clientWorkouts[selectedClient] || [];
+      
+      setClientWorkouts({
+        ...clientWorkouts,
+        [selectedClient]: [
+          ...clientCurrentWorkouts,
+          newWorkout
+        ]
+      });
+    }
+  };
+  
+  const handleSaveWorkoutTemplate = (e) => {
+    e.preventDefault();
+    
+    // In a real app, we would save the workout template
+    // For demo, we'll just show a toast
+    toast({
+      title: "Treino salvo",
+      description: "O treino foi salvo como template com sucesso.",
+      duration: 3000
+    });
+  };
+  
+  const handleDeleteClientWorkout = (workoutId) => {
+    if (selectedClient && clientWorkouts[selectedClient]) {
+      const updatedWorkouts = clientWorkouts[selectedClient].filter(
+        workout => workout.id !== workoutId
+      );
+      
+      setClientWorkouts({
+        ...clientWorkouts,
+        [selectedClient]: updatedWorkouts
+      });
+      
+      toast({
+        title: "Treino removido",
+        description: "O treino foi removido com sucesso.",
+        duration: 3000
+      });
+    }
   };
   
   return (
@@ -300,7 +411,11 @@ const AdminDashboard = () => {
                           <TableCell>{client.endDate}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditClient(client)}
+                              >
                                 <Edit size={16} className="mr-1" />
                                 Editar
                               </Button>
@@ -332,31 +447,31 @@ const AdminDashboard = () => {
             
             <Card>
               <CardContent className="pt-6">
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleAddNewClient}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="grid gap-2">
                       <Label htmlFor="name">Nome completo</Label>
-                      <Input id="name" placeholder="Digite o nome completo" />
+                      <Input id="name" placeholder="Digite o nome completo" required />
                     </div>
                     
                     <div className="grid gap-2">
                       <Label htmlFor="phone">Telefone</Label>
-                      <Input id="phone" placeholder="(00) 00000-0000" />
+                      <Input id="phone" placeholder="(00) 00000-0000" required />
                     </div>
                     
                     <div className="grid gap-2">
                       <Label htmlFor="email">E-mail</Label>
-                      <Input id="email" type="email" placeholder="email@exemplo.com" />
+                      <Input id="email" type="email" placeholder="email@exemplo.com" required />
                     </div>
                     
                     <div className="grid gap-2">
                       <Label htmlFor="birthdate">Data de nascimento</Label>
-                      <Input id="birthdate" type="date" />
+                      <Input id="birthdate" type="date" required />
                     </div>
                     
                     <div className="grid gap-2 col-span-full">
                       <Label htmlFor="objective">Objetivo na academia</Label>
-                      <Select>
+                      <Select required>
                         <SelectTrigger id="objective">
                           <SelectValue placeholder="Selecione o objetivo" />
                         </SelectTrigger>
@@ -384,7 +499,7 @@ const AdminDashboard = () => {
                       <Label>Já praticou exercícios antes?</Label>
                       <div className="flex gap-4">
                         <div className="flex items-center">
-                          <input type="radio" id="exercise-yes" name="exercised-before" className="mr-2" />
+                          <input type="radio" id="exercise-yes" name="exercised-before" className="mr-2" required />
                           <Label htmlFor="exercise-yes">Sim</Label>
                         </div>
                         <div className="flex items-center">
@@ -396,7 +511,7 @@ const AdminDashboard = () => {
                     
                     <div className="grid gap-2">
                       <Label htmlFor="frequency">Frequência pretendida</Label>
-                      <Select>
+                      <Select required>
                         <SelectTrigger id="frequency">
                           <SelectValue placeholder="Selecione a frequência" />
                         </SelectTrigger>
@@ -410,7 +525,7 @@ const AdminDashboard = () => {
                     
                     <div className="grid gap-2">
                       <Label htmlFor="plan">Plano escolhido</Label>
-                      <Select>
+                      <Select required>
                         <SelectTrigger id="plan">
                           <SelectValue placeholder="Selecione o plano" />
                         </SelectTrigger>
@@ -425,7 +540,12 @@ const AdminDashboard = () => {
                   </div>
                   
                   <div className="flex justify-end">
-                    <Button className="bg-groovy hover:bg-groovy-dark">Cadastrar Cliente</Button>
+                    <Button 
+                      type="submit" 
+                      className="bg-groovy hover:bg-groovy-dark"
+                    >
+                      Cadastrar Cliente
+                    </Button>
                   </div>
                 </form>
               </CardContent>
@@ -442,10 +562,10 @@ const AdminDashboard = () => {
             
             <Card>
               <CardContent className="pt-6">
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleSaveWorkoutTemplate}>
                   <div className="grid gap-2">
                     <Label htmlFor="client-id">Número de cadastro do cliente</Label>
-                    <Input id="client-id" placeholder="Digite o número de cadastro do cliente" />
+                    <Input id="client-id" placeholder="Digite o número de cadastro do cliente" required />
                   </div>
                   
                   <div className="flex justify-between items-center mb-4">
@@ -471,6 +591,7 @@ const AdminDashboard = () => {
                               onChange={(e) => handleWorkoutTitleChange(workoutIndex, e.target.value)}
                               className="font-bold text-lg" 
                               placeholder="Nome do treino"
+                              required
                             />
                           </div>
                           <Button 
@@ -511,6 +632,7 @@ const AdminDashboard = () => {
                                       className="mt-1"
                                       value={exercise.name}
                                       onChange={(e) => handleExerciseChange(workoutIndex, exerciseIndex, 'name', e.target.value)}
+                                      required
                                     />
                                   </div>
                                   <div>
@@ -521,6 +643,7 @@ const AdminDashboard = () => {
                                       className="mt-1"
                                       value={exercise.sets}
                                       onChange={(e) => handleExerciseChange(workoutIndex, exerciseIndex, 'sets', e.target.value)}
+                                      required
                                     />
                                   </div>
                                   <div className="relative">
@@ -532,6 +655,7 @@ const AdminDashboard = () => {
                                         className="mt-1"
                                         value={exercise.reps}
                                         onChange={(e) => handleExerciseChange(workoutIndex, exerciseIndex, 'reps', e.target.value)}
+                                        required
                                       />
                                       <Button 
                                         type="button" 
@@ -570,7 +694,10 @@ const AdminDashboard = () => {
                       <Button type="button" variant="outline">
                         Exportar (PDF)
                       </Button>
-                      <Button className="bg-groovy hover:bg-groovy-dark">
+                      <Button 
+                        type="submit" 
+                        className="bg-groovy hover:bg-groovy-dark"
+                      >
                         Salvar Treino
                       </Button>
                     </div>
@@ -600,10 +727,10 @@ const AdminDashboard = () => {
               </p>
             </div>
             
-            {clientWorkouts[selectedClient] ? (
+            {clientWorkouts[selectedClient] && clientWorkouts[selectedClient].length > 0 ? (
               <div className="space-y-6">
-                {clientWorkouts[selectedClient].map((workout, index) => (
-                  <Card key={index} className="mb-6">
+                {clientWorkouts[selectedClient].map((workout) => (
+                  <Card key={workout.id} className="mb-6">
                     <CardHeader>
                       <CardTitle>{workout.title}</CardTitle>
                       <CardDescription>
@@ -630,20 +757,34 @@ const AdminDashboard = () => {
                         </TableBody>
                       </Table>
                     </CardContent>
-                    <CardFooter className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm">
-                        <Edit size={16} className="mr-2" />
-                        Editar
+                    <CardFooter className="flex justify-between">
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleDeleteClientWorkout(workout.id)}
+                      >
+                        <Trash size={16} className="mr-2" />
+                        Excluir
                       </Button>
-                      <Button variant="outline" size="sm">
-                        Exportar (PDF)
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          Exportar (PDF)
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditWorkout(workout)}
+                        >
+                          <Edit size={16} className="mr-2" />
+                          Editar
+                        </Button>
+                      </div>
                     </CardFooter>
                   </Card>
                 ))}
                 
                 <div className="flex justify-end">
-                  <Button>
+                  <Button onClick={handleAddNewWorkoutToClient}>
                     <Plus size={16} className="mr-2" />
                     Adicionar Novo Treino
                   </Button>
@@ -655,7 +796,7 @@ const AdminDashboard = () => {
                   <div className="text-center">
                     <FileText size={48} className="mx-auto text-gray-400 mb-2" />
                     <p className="text-gray-500">Este cliente ainda não possui treinos cadastrados.</p>
-                    <Button className="mt-4">
+                    <Button className="mt-4" onClick={handleAddNewWorkoutToClient}>
                       <Plus size={16} className="mr-2" />
                       Cadastrar Novo Treino
                     </Button>
@@ -666,6 +807,31 @@ const AdminDashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Dialogs */}
+      {currentEditingClient && (
+        <EditClientDialog 
+          isOpen={isEditClientDialogOpen}
+          onClose={() => setIsEditClientDialogOpen(false)}
+          clientData={currentEditingClient}
+          onSave={handleSaveClientEdit}
+        />
+      )}
+      
+      {currentEditingWorkout && (
+        <EditWorkoutDialog 
+          isOpen={isEditWorkoutDialogOpen}
+          onClose={() => setIsEditWorkoutDialogOpen(false)}
+          workout={currentEditingWorkout}
+          onSave={handleSaveWorkoutEdit}
+        />
+      )}
+      
+      <AddWorkoutDialog
+        isOpen={isAddWorkoutDialogOpen}
+        onClose={() => setIsAddWorkoutDialogOpen(false)}
+        onAdd={handleSaveNewWorkout}
+      />
     </div>
   );
 };

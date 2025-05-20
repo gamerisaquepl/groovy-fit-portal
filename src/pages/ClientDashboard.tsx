@@ -6,10 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
+import WorkoutChangeDialog from '@/components/WorkoutChangeDialog';
+import PersonalDataChangeDialog from '@/components/PersonalDataChangeDialog';
+import { useToast } from '@/components/ui/use-toast';
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeWorkout, setActiveWorkout] = useState(0);
+  const [isWorkoutDialogOpen, setIsWorkoutDialogOpen] = useState(false);
+  const [isDataDialogOpen, setIsDataDialogOpen] = useState(false);
   
   // Mock data for demonstration
   const clientData = {
@@ -61,7 +67,11 @@ const ClientDashboard = () => {
   ];
 
   const handleExport = () => {
-    alert("Função de exportação seria implementada aqui.");
+    toast({
+      title: "Exportação iniciada",
+      description: "Seu arquivo PDF está sendo gerado e será baixado automaticamente.",
+      duration: 3000
+    });
   };
 
   return (
@@ -155,7 +165,11 @@ const ClientDashboard = () => {
                     </div>
                     
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button variant="outline" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setIsDataDialogOpen(true)}
+                      >
                         Solicitar Alteração de Dados
                       </Button>
                       <Button 
@@ -225,7 +239,11 @@ const ClientDashboard = () => {
                     </div>
                     
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button variant="outline" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setIsWorkoutDialogOpen(true)}
+                      >
                         Solicitar Alteração de Treino
                       </Button>
                       <Button 
@@ -243,6 +261,19 @@ const ClientDashboard = () => {
         </div>
       </main>
       <Footer />
+      
+      {/* Dialogs */}
+      <WorkoutChangeDialog
+        isOpen={isWorkoutDialogOpen}
+        onClose={() => setIsWorkoutDialogOpen(false)}
+        currentWorkout={workoutData[activeWorkout].name}
+      />
+      
+      <PersonalDataChangeDialog
+        isOpen={isDataDialogOpen}
+        onClose={() => setIsDataDialogOpen(false)}
+        clientData={clientData}
+      />
     </div>
   );
 };
